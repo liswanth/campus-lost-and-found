@@ -1,24 +1,53 @@
 const jwt = require('jsonwebtoken')
-const AppError = require('../utils/AppError')
 
 const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return next(new AppError('Authentication token required', 401, 'AUTH_REQUIRED'))
-  }
-
-  const token = authHeader.slice(7).trim()
-
-  if (!token) {
-    return next(new AppError('Authentication token required', 401, 'AUTH_REQUIRED'))
-  }
-
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET)
+    const authHeader = req.headers.authorization
+
+    if (!authHeader) {
+      return res.status(401).json({
+        message: 'Please login first'
+      })
+    }
+
+    const parts = authHeader.trim().split(/\s+/)
+
+    if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+      return res.status(401).json({
+        message: 'Invalid authorization format'
+      })
+    }
+
+    const token = parts[1]
+
+    if (!token) {
+      return res.status(401).json({
+        message: 'Authentication token missing'
+      })
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not configured')
+
+      return res.status(500).json({
+        message: 'Authentication service is not configured'
+      })
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    )
+
+    req.user = decoded
+
     next()
-  } catch {
-    next(new AppError('Invalid or expired token', 401, 'INVALID_TOKEN'))
+  } catch (error) {
+    console.log('Authentication Error:', error.message)
+
+    return res.status(401).json({
+      message: 'Invalid or expired token'
+    })
   }
 }
 

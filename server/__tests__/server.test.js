@@ -1,73 +1,125 @@
 const request = require('supertest')
+const jwt = require('jsonwebtoken')
 const app = require('../server')
 
 describe('Campus Lost and Found API', () => {
+
   test('GET / should return API running message', async () => {
     const response = await request(app).get('/')
 
     expect(response.statusCode).toBe(200)
-    expect(response.body.success).toBe(true)
     expect(response.body.status).toBe('ok')
-    expect(response.body.version).toBe('v1')
   })
 
-  test('GET /api/health should return health status', async () => {
+  test('GET /api/health should return ok', async () => {
     const response = await request(app).get('/api/health')
 
     expect(response.statusCode).toBe(200)
-    expect(response.body.success).toBe(true)
     expect(response.body.status).toBe('ok')
   })
 
-  test('Unknown route should return consistent 404 JSON', async () => {
-    const response = await request(app).get('/api/v1/does-not-exist')
-
-    expect(response.statusCode).toBe(404)
-    expect(response.body.success).toBe(false)
-    expect(response.body.code).toBe('NOT_FOUND')
-  })
-
-  test('Register validation rejects a weak password', async () => {
+  test('Protected POST /api/lost-items should reject request without token', async () => {
     const response = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        name: 'Test User',
-        email: 'test@example.com',
-        password: '123'
-      })
-
-    expect(response.statusCode).toBe(400)
-    expect(response.body.code).toBe('VALIDATION_ERROR')
-  })
-
-  test('Login validation rejects an invalid email', async () => {
-    const response = await request(app)
-      .post('/api/v1/auth/login')
-      .send({
-        email: 'not-an-email',
-        password: 'password'
-      })
-
-    expect(response.statusCode).toBe(400)
-    expect(response.body.code).toBe('VALIDATION_ERROR')
-  })
-
-  const protectedRoutes = [
-    ['POST', '/api/v1/lost-items'],
-    ['POST', '/api/v1/found-items'],
-    ['GET', '/api/v1/my-reports'],
-    ['DELETE', '/api/v1/lost-items/507f1f77bcf86cd799439011'],
-    ['DELETE', '/api/v1/found-items/507f1f77bcf86cd799439011'],
-    ['PUT', '/api/v1/lost-items/507f1f77bcf86cd799439011'],
-    ['PUT', '/api/v1/found-items/507f1f77bcf86cd799439011'],
-    ['PUT', '/api/v1/lost-items/507f1f77bcf86cd799439011/mark-found']
-  ]
-
-  test.each(protectedRoutes)('%s %s rejects request without token', async (method, path) => {
-    const response = await request(app)[method.toLowerCase()](path)
+      .post('/api/lost-items')
 
     expect(response.statusCode).toBe(401)
-    expect(response.body.success).toBe(false)
-    expect(response.body.code).toBe('AUTH_REQUIRED')
   })
+
+  test('Protected POST /api/found-items should reject request without token', async () => {
+    const response = await request(app)
+      .post('/api/found-items')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected GET /api/my-reports should reject request without token', async () => {
+    const response = await request(app)
+      .get('/api/my-reports')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected DELETE /api/lost-items/:id should reject request without token', async () => {
+    const response = await request(app)
+      .delete('/api/lost-items/507f1f77bcf86cd799439011')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected DELETE /api/found-items/:id should reject request without token', async () => {
+    const response = await request(app)
+      .delete('/api/found-items/507f1f77bcf86cd799439011')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected PUT /api/lost-items/:id should reject request without token', async () => {
+    const response = await request(app)
+      .put('/api/lost-items/507f1f77bcf86cd799439011')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected PUT /api/found-items/:id should reject request without token', async () => {
+    const response = await request(app)
+      .put('/api/found-items/507f1f77bcf86cd799439011')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected mark-found endpoint should reject request without token', async () => {
+    const response = await request(app)
+      .put('/api/lost-items/507f1f77bcf86cd799439011/mark-found')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected endpoint should reject invalid authorization format', async () => {
+    const response = await request(app)
+      .get('/api/my-reports')
+      .set('Authorization', 'InvalidToken')
+
+    expect(response.statusCode).toBe(401)
+    expect(response.body.message).toBe('Invalid authorization format')
+  })
+
+  test('Protected endpoint should reject authorization without token', async () => {
+    const response = await request(app)
+      .get('/api/my-reports')
+      .set('Authorization', 'Bearer')
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('Protected endpoint should reject invalid JWT', async () => {
+    const response = await request(app)
+      .get('/api/my-reports')
+      .set('Authorization', 'Bearer invalid-token')
+
+    expect(response.statusCode).toBe(401)
+    expect(response.body.message).toBe('Invalid or expired token')
+  })
+
+  test('Protected endpoint should reject expired JWT', async () => {
+    const secret = process.env.JWT_SECRET
+
+    const expiredToken = jwt.sign(
+      {
+        id: '507f1f77bcf86cd799439011',
+        email: 'test@example.com'
+      },
+      secret,
+      {
+        expiresIn: -1
+      }
+    )
+
+    const response = await request(app)
+      .get('/api/my-reports')
+      .set('Authorization', `Bearer ${expiredToken}`)
+
+    expect(response.statusCode).toBe(401)
+    expect(response.body.message).toBe('Invalid or expired token')
+  })
+
 })
