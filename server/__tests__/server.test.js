@@ -11,72 +11,81 @@ describe('Campus Lost and Found API', () => {
     expect(response.body.status).toBe('ok')
   })
 
-  test('GET /api/health should return ok', async () => {
+  test('GET /api/health should return health status', async () => {
     const response = await request(app).get('/api/health')
 
     expect(response.statusCode).toBe(200)
     expect(response.body.status).toBe('ok')
+    expect(response.body).toHaveProperty('database')
   })
 
-  test('Protected POST /api/lost-items should reject request without token', async () => {
+  test('Unknown route should return 404', async () => {
     const response = await request(app)
-      .post('/api/lost-items')
+      .get('/api/unknown-route')
+
+    expect(response.statusCode).toBe(404)
+    expect(response.body.code).toBe('NOT_FOUND')
+  })
+
+  test('Protected POST /api/v1/lost-items should reject request without token', async () => {
+    const response = await request(app)
+      .post('/api/v1/lost-items')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected POST /api/found-items should reject request without token', async () => {
+  test('Protected POST /api/v1/found-items should reject request without token', async () => {
     const response = await request(app)
-      .post('/api/found-items')
+      .post('/api/v1/found-items')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected GET /api/my-reports should reject request without token', async () => {
+  test('Protected GET /api/v1/my-reports should reject request without token', async () => {
     const response = await request(app)
-      .get('/api/my-reports')
+      .get('/api/v1/my-reports')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected DELETE /api/lost-items/:id should reject request without token', async () => {
+  test('Protected DELETE /api/v1/lost-items/:id should reject request without token', async () => {
     const response = await request(app)
-      .delete('/api/lost-items/507f1f77bcf86cd799439011')
+      .delete('/api/v1/lost-items/507f1f77bcf86cd799439011')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected DELETE /api/found-items/:id should reject request without token', async () => {
+  test('Protected DELETE /api/v1/found-items/:id should reject request without token', async () => {
     const response = await request(app)
-      .delete('/api/found-items/507f1f77bcf86cd799439011')
+      .delete('/api/v1/found-items/507f1f77bcf86cd799439011')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected PUT /api/lost-items/:id should reject request without token', async () => {
+  test('Protected PUT /api/v1/lost-items/:id should reject request without token', async () => {
     const response = await request(app)
-      .put('/api/lost-items/507f1f77bcf86cd799439011')
+      .put('/api/v1/lost-items/507f1f77bcf86cd799439011')
 
     expect(response.statusCode).toBe(401)
   })
 
-  test('Protected PUT /api/found-items/:id should reject request without token', async () => {
+  test('Protected PUT /api/v1/found-items/:id should reject request without token', async () => {
     const response = await request(app)
-      .put('/api/found-items/507f1f77bcf86cd799439011')
+      .put('/api/v1/found-items/507f1f77bcf86cd799439011')
 
     expect(response.statusCode).toBe(401)
   })
 
   test('Protected mark-found endpoint should reject request without token', async () => {
     const response = await request(app)
-      .put('/api/lost-items/507f1f77bcf86cd799439011/mark-found')
+      .put('/api/v1/lost-items/507f1f77bcf86cd799439011/mark-found')
 
     expect(response.statusCode).toBe(401)
   })
 
   test('Protected endpoint should reject invalid authorization format', async () => {
     const response = await request(app)
-      .get('/api/my-reports')
+      .get('/api/v1/my-reports')
       .set('Authorization', 'InvalidToken')
 
     expect(response.statusCode).toBe(401)
@@ -85,7 +94,7 @@ describe('Campus Lost and Found API', () => {
 
   test('Protected endpoint should reject authorization without token', async () => {
     const response = await request(app)
-      .get('/api/my-reports')
+      .get('/api/v1/my-reports')
       .set('Authorization', 'Bearer')
 
     expect(response.statusCode).toBe(401)
@@ -93,7 +102,7 @@ describe('Campus Lost and Found API', () => {
 
   test('Protected endpoint should reject invalid JWT', async () => {
     const response = await request(app)
-      .get('/api/my-reports')
+      .get('/api/v1/my-reports')
       .set('Authorization', 'Bearer invalid-token')
 
     expect(response.statusCode).toBe(401)
@@ -115,7 +124,7 @@ describe('Campus Lost and Found API', () => {
     )
 
     const response = await request(app)
-      .get('/api/my-reports')
+      .get('/api/v1/my-reports')
       .set('Authorization', `Bearer ${expiredToken}`)
 
     expect(response.statusCode).toBe(401)
